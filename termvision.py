@@ -42,27 +42,28 @@ ASCII_ARRAY = np.array(list(ASCII_CHARS))
 NUM_CHARS = len(ASCII_CHARS)
 
 temp_audio_file = None
+cursor_hidden = False
 
 def cleanup():
-    global temp_audio_file
+    global temp_audio_file, cursor_hidden
     if winsound:
         try:
             winsound.PlaySound(None, winsound.SND_PURGE)
         except Exception:
             pass
-    # Restore cursor visibility and reset ANSI colors
-    sys.stdout.write(f"{C_SHOW_CURSOR}{C_RESET}\n")
-    sys.stdout.flush()
+    if cursor_hidden:
+        # Restore terminal state only if playback hid the cursor.
+        sys.stdout.write(f"{C_SHOW_CURSOR}{C_RESET}\n")
+        sys.stdout.flush()
+        cursor_hidden = False
     if temp_audio_file and os.path.exists(temp_audio_file):
         try:
             os.remove(temp_audio_file)
+            temp_audio_file = None
         except Exception:
             pass
 
 atexit.register(cleanup)
-signal.signal(signal.SIGINT, lambda s, f: sys.exit(0))
-if hasattr(signal, "SIGTERM"):
-    signal.signal(signal.SIGTERM, lambda s, f: sys.exit(0))
 
 def extract_audio(video_path):
     global temp_audio_file
@@ -81,14 +82,22 @@ def extract_audio(video_path):
             "-ac", "2",
             temp_audio_file
         ]
-        res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        res = subprocess.run(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
         if res.returncode == 0 and os.path.exists(temp_audio_file) and os.path.getsize(temp_audio_file) > 1000:
-            return temp_audio_file
-    except Exception as e:
-        pass
-    return None
+            return temp_audio_file, None
+        details = res.stderr.strip().splitlines()
+        reason = details[-1] if details else "FFmpeg could not extract an audio track."
+        return None, reason
+    except Exception as exc:
+        return None, str(exc)
 
 def main():
+    global cursor_hidden
     # Enable ANSI escape processing in Windows console
     os.system("")
 
@@ -97,6 +106,10 @@ def main():
     )
     parser.add_argument("video", help="path to the video file to play")
     video_path = parser.parse_args().video
+    signal.signal(signal.SIGINT, lambda s, f: sys.exit(0))
+    if hasattr(signal, "SIGTERM"):
+        signal.signal(signal.SIGTERM, lambda s, f: sys.exit(0))
+
     if not os.path.isfile(video_path):
         print(f"Error: Video file not found: {video_path}")
         sys.exit(1)
@@ -108,7 +121,7 @@ def main():
         sys.exit(1)
 
     fps = cap.get(cv2.CAP_PROP_FPS)
-    if fps <= 0 or np.isnan(fps):
+    if not np.isfinite(fps) or fps <= 0:
         fps = 30.0
 
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -118,24 +131,31 @@ def main():
     if video_width <= 0 or video_height <= 0:
         video_width, video_height = 16.0, 9.0
 
-    print("Extracting audio track for sync playback...")
-    audio_path = extract_audio(video_path)
-
-    # Hide cursor and clear screen initially
-    sys.stdout.write(f"{C_HIDE_CURSOR}{C_CLEAR}{C_HOME}")
-    sys.stdout.flush()
+    audio_path = None
+    if winsound:
+        print("Extracting audio track...")
+        audio_path, audio_error = extract_audio(video_path)
+        if audio_error:
+            print(f"Audio unavailable: {audio_error}")
+    else:
+        print("Windows audio playback is unavailable; continuing without audio.")
 
     last_term_size = None
     target_w, target_h = 80, 24
 
-    # Start audio playback asynchronously at the exact moment video playback begins
+    # Start the video clock immediately before asynchronous audio playback.
+    start_time = time.perf_counter()
     if audio_path and winsound:
         try:
             winsound.PlaySound(audio_path, winsound.SND_FILENAME | winsound.SND_ASYNC)
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"Audio playback unavailable: {exc}")
 
-    start_time = time.perf_counter()
+    # Hide cursor and clear screen initially
+    sys.stdout.write(f"{C_HIDE_CURSOR}{C_CLEAR}{C_HOME}")
+    sys.stdout.flush()
+    cursor_hidden = True
+
     current_frame_idx = -1
 
     try:
