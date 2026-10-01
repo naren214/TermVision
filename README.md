@@ -1,6 +1,6 @@
-# Caramelldansen Terminal Video Player
+# TermVision
 
-A small Windows terminal player that turns a video into a live, full-color ASCII animation. It renders frames with ANSI true color, adapts to terminal resizing, synchronizes playback to the video frame rate, and extracts audio through the FFmpeg binary bundled with `imageio-ffmpeg`.
+A Windows terminal video player that turns local video files into live, full-color ASCII animations. TermVision renders frames with ANSI true color, adapts to terminal resizing, synchronizes playback to the video frame rate, and extracts audio through the FFmpeg binary bundled with `imageio-ffmpeg`.
 
 > Bring your own video file. Media files are not included in this repository.
 
@@ -40,7 +40,7 @@ If PowerShell blocks virtual-environment activation, run the install commands wi
 Pass the path to a video as the first argument:
 
 ```powershell
-python .\caramelDansen.py "C:\Path\To\video.mp4"
+python .\termvision.py "C:\Path\To\video.mp4"
 ```
 
 The path may contain spaces when it is quoted. The script does not assume a particular video is installed on your computer.
@@ -66,7 +66,7 @@ The path may contain spaces when it is quoted. The script does not assume a part
 
 ```text
 .
-├── caramelDansen.py   # Player
+├── termvision.py      # Player
 ├── requirements.txt   # Python dependencies
 ├── .gitignore
 └── README.md

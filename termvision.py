@@ -69,7 +69,7 @@ def extract_audio(video_path):
     try:
         ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
         temp_dir = tempfile.gettempdir()
-        temp_audio_file = os.path.join(temp_dir, f"carameldansen_audio_{os.getpid()}_{int(time.time())}.wav")
+        temp_audio_file = os.path.join(temp_dir, f"termvision_audio_{os.getpid()}_{int(time.time())}.wav")
         # Extract audio to 16-bit PCM WAV (stereo, 44100Hz) for winsound
         cmd = [
             ffmpeg_exe,
@@ -101,7 +101,7 @@ def main():
         print(f"Error: Video file not found: {video_path}")
         sys.exit(1)
 
-    print(f"Loading Caramelldansen video: {video_path}")
+    print(f"Loading video: {video_path}")
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         print(f"Error: Could not open video file: {video_path}")
